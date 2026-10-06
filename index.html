@@ -8,8 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Unrestricted Jitsi API -->
-    <script src="https://jitsi.member.fsf.org/external_api.js"></script>
     <style>
         /* Floating Draggable Video Window */
         #floating-video-box {
@@ -42,10 +40,11 @@
             font-weight: 600;
         }
 
-        #jitsi-container {
+        #video-frame {
             flex: 1;
             width: 100%;
             height: 100%;
+            border: none;
             background: #000;
         }
 
@@ -55,20 +54,20 @@
             width: 220px !important;
         }
 
-        #floating-video-box.minimized #jitsi-container {
+        #floating-video-box.minimized #video-frame {
             display: none;
         }
 
         /* Expanded state */
         #floating-video-box.expanded {
-            width: 600px !important;
-            height: 450px !important;
+            width: 620px !important;
+            height: 460px !important;
         }
     </style>
 </head>
 <body class="bg-gray-900 text-white h-screen flex flex-col overflow-hidden">
 
-    <!-- Top Header -->
+    <!-- Header -->
     <header class="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between shadow-md">
         <div class="flex items-center space-x-3">
             <i class="fas fa-chalkboard-teacher text-indigo-400 text-2xl"></i>
@@ -95,20 +94,20 @@
     <div class="flex flex-1 overflow-hidden relative">
         <main class="flex-1 p-8 flex flex-col items-center justify-center text-center">
             <div class="bg-gray-800/80 border border-gray-700 p-8 rounded-2xl max-w-lg shadow-xl">
-                <i class="fas fa-video text-emerald-400 text-5xl mb-4"></i>
-                <h2 class="text-2xl font-bold mb-2">Video Server Test</h2>
+                <i class="fas fa-video text-indigo-400 text-5xl mb-4"></i>
+                <h2 class="text-2xl font-bold mb-2">Video Feed Test</h2>
                 <p class="text-gray-300 text-sm mb-4">
-                    Testing on an unrestricted community server (no 5-minute limit, no demo warnings).
+                    Testing clean embed permissions (camera, microphone, display-capture).
                 </p>
-                <div class="text-xs text-left bg-gray-900 p-4 rounded-lg border border-gray-700 text-gray-400 space-y-1">
-                    <div>• Connected Server: <strong class="text-indigo-400" id="current-server-display">jitsi.member.fsf.org</strong></div>
-                    <div>• Room: <strong class="text-emerald-400" id="current-room-display">...</strong></div>
+                <div class="text-xs text-left bg-gray-900 p-4 rounded-lg border border-gray-700 text-gray-400 space-y-2">
+                    <div>• <strong>Camera / Mic Status:</strong> Prompt should appear automatically.</div>
+                    <div>• <strong>If prompted:</strong> Click "Allow" to enable your camera.</div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Floating Draggable Jitsi Window -->
+    <!-- Floating Draggable Video Window -->
     <div id="floating-video-box">
         <div id="floating-video-header">
             <div class="flex items-center gap-2">
@@ -124,55 +123,23 @@
                 </button>
             </div>
         </div>
-        <div id="jitsi-container"></div>
+
+        <!-- High-compatibility video frame with explicit device permissions -->
+        <iframe 
+            id="video-frame" 
+            src="https://meet.jit.si/MrIanClassroomRoom123#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false"
+            allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
+        ></iframe>
     </div>
 
     <script>
-        const ACTIVE_DOMAIN = "jitsi.member.fsf.org";
-        // Fixed clean room name so your student link always matches
-        const ROOM_NAME = "MrIanClassroom-Room123"; 
-        let jitsiApi = null;
-
-        document.getElementById('current-server-display').textContent = ACTIVE_DOMAIN;
-        document.getElementById('current-room-display').textContent = ROOM_NAME;
-
-        function initJitsi() {
-            const options = {
-                roomName: ROOM_NAME,
-                width: "100%",
-                height: "100%",
-                parentNode: document.querySelector('#jitsi-container'),
-                userInfo: {
-                    displayName: 'Teacher Ian'
-                },
-                configOverwrite: {
-                    startWithAudioMuted: false,
-                    startWithVideoMuted: false,
-                    prejoinPageEnabled: false,
-                    disableDeepLinking: true
-                },
-                interfaceConfigOverwrite: {
-                    TOOLBAR_BUTTONS: [
-                        'microphone', 'camera', 'desktop', 'chat',
-                        'tileview', 'settings'
-                    ],
-                    SHOW_JITSI_WATERMARK: false
-                }
-            };
-
-            try {
-                jitsiApi = new JitsiMeetExternalAPI(ACTIVE_DOMAIN, options);
-            } catch (err) {
-                console.error("Jitsi Init Error:", err);
-            }
-        }
+        const ROOM_URL = "https://meet.jit.si/MrIanClassroomRoom123";
 
         function copyStudentLink() {
-            const studentUrl = `https://${ACTIVE_DOMAIN}/${ROOM_NAME}`;
-            navigator.clipboard.writeText(studentUrl).then(() => {
-                alert("Student Link Copied!\n\nSend this link to your student:\n" + studentUrl);
+            navigator.clipboard.writeText(ROOM_URL).then(() => {
+                alert("Student Link Copied!\n\n" + ROOM_URL);
             }).catch(() => {
-                prompt("Copy this student link:", studentUrl);
+                prompt("Copy student link:", ROOM_URL);
             });
         }
 
@@ -231,8 +198,6 @@
                 document.onmousemove = null;
             }
         }
-
-        window.addEventListener('DOMContentLoaded', initJitsi);
     </script>
 </body>
 </html>
