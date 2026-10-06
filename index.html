@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mr. Ian's Classroom Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Unrestricted Jitsi API -->
+    <script src="https://jitsi.member.fsf.org/external_api.js"></script>
+    <style>
+        /* Floating Draggable Video Window */
+        #floating-video-box {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 380px;
+            height: 280px;
+            z-index: 9999;
+            background: #111827;
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            border: 2px solid #374151;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: width 0.2s, height 0.2s;
+        }
+
+        #floating-video-header {
+            cursor: move;
+            user-select: none;
+            background: #1f2937;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #f3f4f6;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        #jitsi-container {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        /* Minimized state */
+        #floating-video-box.minimized {
+            height: 42px !important;
+            width: 220px !important;
+        }
+
+        #floating-video-box.minimized #jitsi-container {
+            display: none;
+        }
+
+        /* Expanded state */
+        #floating-video-box.expanded {
+            width: 600px !important;
+            height: 450px !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen flex flex-col overflow-hidden">
+
+    <!-- Top Header -->
+    <header class="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between shadow-md">
+        <div class="flex items-center space-x-3">
+            <i class="fas fa-chalkboard-teacher text-indigo-400 text-2xl"></i>
+            <div>
+                <h1 class="text-xl font-bold tracking-wide">Mr. Ian's Virtual Classroom</h1>
+                <p class="text-xs text-gray-400">Interactive Teaching Hub</p>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div class="flex items-center space-x-3">
+            <button onclick="copyStudentLink()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition">
+                <i class="fas fa-copy"></i>
+                <span>Copy Student Link</span>
+            </button>
+            <button onclick="toggleVideoBox()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition">
+                <i class="fas fa-video"></i>
+                <span id="call-toggle-label">Hide Video</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Workspace -->
+    <div class="flex flex-1 overflow-hidden relative">
+        <main class="flex-1 p-8 flex flex-col items-center justify-center text-center">
+            <div class="bg-gray-800/80 border border-gray-700 p-8 rounded-2xl max-w-lg shadow-xl">
+                <i class="fas fa-video text-emerald-400 text-5xl mb-4"></i>
+                <h2 class="text-2xl font-bold mb-2">Video Server Test</h2>
+                <p class="text-gray-300 text-sm mb-4">
+                    Testing on an unrestricted community server (no 5-minute limit, no demo warnings).
+                </p>
+                <div class="text-xs text-left bg-gray-900 p-4 rounded-lg border border-gray-700 text-gray-400 space-y-1">
+                    <div>• Connected Server: <strong class="text-indigo-400" id="current-server-display">jitsi.member.fsf.org</strong></div>
+                    <div>• Room: <strong class="text-emerald-400" id="current-room-display">...</strong></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Floating Draggable Jitsi Window -->
+    <div id="floating-video-box">
+        <div id="floating-video-header">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Live Class Cam</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleExpandVideo()" class="text-gray-400 hover:text-white" title="Expand / Shrink">
+                    <i class="fas fa-expand-alt text-xs"></i>
+                </button>
+                <button onclick="toggleMinimizeVideo()" class="text-gray-400 hover:text-white" title="Minimize">
+                    <i class="fas fa-minus text-xs"></i>
+                </button>
+            </div>
+        </div>
+        <div id="jitsi-container"></div>
+    </div>
+
+    <script>
+        const ACTIVE_DOMAIN = "jitsi.member.fsf.org";
+        // Fixed clean room name so your student link always matches
+        const ROOM_NAME = "MrIanClassroom-Room123"; 
+        let jitsiApi = null;
+
+        document.getElementById('current-server-display').textContent = ACTIVE_DOMAIN;
+        document.getElementById('current-room-display').textContent = ROOM_NAME;
+
+        function initJitsi() {
+            const options = {
+                roomName: ROOM_NAME,
+                width: "100%",
+                height: "100%",
+                parentNode: document.querySelector('#jitsi-container'),
+                userInfo: {
+                    displayName: 'Teacher Ian'
+                },
+                configOverwrite: {
+                    startWithAudioMuted: false,
+                    startWithVideoMuted: false,
+                    prejoinPageEnabled: false,
+                    disableDeepLinking: true
+                },
+                interfaceConfigOverwrite: {
+                    TOOLBAR_BUTTONS: [
+                        'microphone', 'camera', 'desktop', 'chat',
+                        'tileview', 'settings'
+                    ],
+                    SHOW_JITSI_WATERMARK: false
+                }
+            };
+
+            try {
+                jitsiApi = new JitsiMeetExternalAPI(ACTIVE_DOMAIN, options);
+            } catch (err) {
+                console.error("Jitsi Init Error:", err);
+            }
+        }
+
+        function copyStudentLink() {
+            const studentUrl = `https://${ACTIVE_DOMAIN}/${ROOM_NAME}`;
+            navigator.clipboard.writeText(studentUrl).then(() => {
+                alert("Student Link Copied!\n\nSend this link to your student:\n" + studentUrl);
+            }).catch(() => {
+                prompt("Copy this student link:", studentUrl);
+            });
+        }
+
+        function toggleVideoBox() {
+            const box = document.getElementById('floating-video-box');
+            const label = document.getElementById('call-toggle-label');
+            if (box.style.display === 'none') {
+                box.style.display = 'flex';
+                label.textContent = 'Hide Video';
+            } else {
+                box.style.display = 'none';
+                label.textContent = 'Show Video';
+            }
+        }
+
+        function toggleMinimizeVideo() {
+            document.getElementById('floating-video-box').classList.toggle('minimized');
+        }
+
+        function toggleExpandVideo() {
+            document.getElementById('floating-video-box').classList.toggle('expanded');
+        }
+
+        // Draggable Floating Box
+        dragElement(document.getElementById("floating-video-box"));
+
+        function dragElement(elmnt) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const header = document.getElementById("floating-video-header");
+            if (header) {
+                header.onmousedown = dragMouseDown;
+            }
+
+            function dragMouseDown(e) {
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+                elmnt.style.bottom = "auto";
+                elmnt.style.right = "auto";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', initJitsi);
+    </script>
+</body>
+</html>
